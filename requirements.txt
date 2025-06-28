@@ -1,0 +1,10 @@
+# Core dependencies for Slowloris
+# Note: Most dependencies are built-in Python modules
+
+# Optional: SOCKS proxy support (only needed if using --useproxy flag)
+PySocks>=1.7.1
+
+# Development dependencies (optional)
+# pytest>=7.0.0
+# black>=22.0.0
+# flake8>=4.0.0 
